@@ -8,7 +8,7 @@ from typing import Any, Dict
 from textwrap import dedent
 from importlib.metadata import entry_points
 from .__about__ import __version__
-from ._markitdown import MarkItDown, StreamInfo, DocumentConverterResult
+from ._stream_info import StreamInfo
 
 
 def main():
@@ -235,6 +235,8 @@ def main():
         print(f"SenseVoiceSmall model installed to: {target_dir}")
         sys.exit(0)
 
+    from ._markitdown import MarkItDown
+
     if args.use_docintel:
         if args.endpoint is None:
             _exit_with_error(
@@ -300,7 +302,7 @@ def main():
     _handle_output(args, result)
 
 
-def _handle_output(args, result: DocumentConverterResult):
+def _handle_output(args, result):
     """Handle output to stdout or file"""
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:

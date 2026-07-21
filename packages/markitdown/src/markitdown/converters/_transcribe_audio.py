@@ -1,4 +1,5 @@
 import io
+import importlib.util
 import math
 import os
 import shutil
@@ -31,29 +32,12 @@ SENSEVOICE_REQUIRED_FILES = [
     "am.mvn",
 ]
 
-try:
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        warnings.filterwarnings("ignore", category=SyntaxWarning)
-        import speech_recognition as sr
-        import pydub
-    _sr_available = True
-except ImportError:
-    _dep_exc_info = sys.exc_info()
-
-try:
-    import whisper
-    _whisper_available = True
-except ImportError:
-    pass
-
-try:
-    from funasr import AutoModel
-    from funasr.utils.postprocess_utils import rich_transcription_postprocess
-    _sensevoice_available = True
-except ImportError:
-    pass
+_sr_available = (
+    importlib.util.find_spec("speech_recognition") is not None
+    and importlib.util.find_spec("pydub") is not None
+)
+_whisper_available = importlib.util.find_spec("whisper") is not None
+_sensevoice_available = importlib.util.find_spec("funasr") is not None
 
 
 def _get_local_sensevoice_model_path() -> Optional[str]:
@@ -237,6 +221,8 @@ def _split_audio_for_sensevoice(audio_path: str, audio_format: str) -> list[str]
     if not _sr_available:
         return [audio_path]
 
+    import pydub
+
     source_format = "mp4" if audio_format == "mp4" else audio_format
     audio_segment = pydub.AudioSegment.from_file(audio_path, format=source_format)
     source_size = max(os.path.getsize(audio_path), 1)
@@ -275,6 +261,8 @@ def _transcribe_with_whisper(
         tmp_path = tmp.name
 
     try:
+        import whisper
+
         model = whisper.load_model(model_size)
         opts = {"language": language} if language else {}
         result = model.transcribe(tmp_path, **opts)
@@ -294,12 +282,16 @@ def _transcribe_with_google(
     if audio_format in ["wav", "aiff", "flac"]:
         audio_source = file_stream
     elif audio_format in ["mp3", "mp4"]:
+        import pydub
+
         audio_segment = pydub.AudioSegment.from_file(file_stream, format=audio_format)
         audio_source = io.BytesIO()
         audio_segment.export(audio_source, format="wav")
         audio_source.seek(0)
     else:
         raise ValueError(f"Unsupported audio format: {audio_format}")
+
+    import speech_recognition as sr
 
     recognizer = sr.Recognizer()
     with sr.AudioFile(audio_source) as source:
