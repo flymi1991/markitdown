@@ -44,6 +44,24 @@ MarkItDown currently supports the conversion from:
 
 ### Bilibili To Markdown
 
+After installing the package, Bilibili videos can be converted directly from the command line. Audio transcription is enabled by default for Bilibili video URLs because many Bilibili videos do not provide subtitles:
+
+```bash
+markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md
+```
+
+To adjust parallel SenseVoice transcription workers:
+
+```bash
+markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md --sensevoice-workers 8
+```
+
+To disable Bilibili audio transcription and only use available subtitles/metadata:
+
+```bash
+markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md --no-bilibili-audio
+```
+
 The Bilibili converter supports video metadata, descriptions, subtitles, and audio transcription fallback:
 
 ```python

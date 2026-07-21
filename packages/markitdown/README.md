@@ -44,6 +44,19 @@ print(result.text_content)
 
 ### Bilibili Video To Markdown
 
+For Bilibili video URLs, the CLI enables audio transcription by default:
+
+```bash
+markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md
+```
+
+Optional controls:
+
+```bash
+markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md --sensevoice-workers 8
+markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md --no-bilibili-audio
+```
+
 ```python
 from markitdown import MarkItDown
 

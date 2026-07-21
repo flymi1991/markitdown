@@ -138,6 +138,19 @@ def main():
         help="Keep data URIs (like base64-encoded images) in the output. By default, data URIs are truncated.",
     )
 
+    parser.add_argument(
+        "--no-bilibili-audio",
+        action="store_true",
+        help="Disable automatic audio transcription for Bilibili video URLs.",
+    )
+
+    parser.add_argument(
+        "--sensevoice-workers",
+        type=int,
+        default=8,
+        help="Number of workers for SenseVoice chunk transcription. Default: 8.",
+    )
+
     parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
@@ -244,15 +257,22 @@ def main():
     else:
         markitdown = MarkItDown(enable_plugins=args.use_plugins)
 
+    convert_kwargs: Dict[str, Any] = {
+        "keep_data_uris": args.keep_data_uris,
+    }
+    if _is_bilibili_video_url(args.filename) and not args.no_bilibili_audio:
+        convert_kwargs["bilibili_transcribe_audio"] = True
+        convert_kwargs["sensevoice_workers"] = args.sensevoice_workers
+
     if args.filename is None:
         result = markitdown.convert_stream(
             sys.stdin.buffer,
             stream_info=stream_info,
-            keep_data_uris=args.keep_data_uris,
+            **convert_kwargs,
         )
     else:
         result = markitdown.convert(
-            args.filename, stream_info=stream_info, keep_data_uris=args.keep_data_uris
+            args.filename, stream_info=stream_info, **convert_kwargs
         )
 
     _handle_output(args, result)
@@ -270,6 +290,13 @@ def _handle_output(args, result: DocumentConverterResult):
                 sys.stdout.encoding
             )
         )
+
+
+def _is_bilibili_video_url(value: str | None) -> bool:
+    if value is None:
+        return False
+    value = value.lower()
+    return ("bilibili.com/video/bv" in value) or ("b23.tv" in value)
 
 
 def _exit_with_error(message: str):
