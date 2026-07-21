@@ -64,7 +64,7 @@ python -m pip install funasr torchaudio pydub SpeechRecognition
 
 ## Install SenseVoice Model
 
-Install or copy the SenseVoiceSmall model files next to `markitdown.exe`:
+Install or copy the SenseVoiceSmall model files into the active Python environment:
 
 ```powershell
 markitdown --install-sensevoice-model
@@ -76,7 +76,11 @@ Or install from a local model directory:
 markitdown --install-sensevoice-model "D:\models\SenseVoiceSmall"
 ```
 
-The required files, including `model.pt`, are copied to the same directory as the installed `markitdown.exe`. In a Conda environment this is usually the environment's `Scripts` directory.
+The required files, including `model.pt`, are copied to `<python-prefix>\share\markitdown\models`. In a Conda environment this is usually similar to:
+
+```text
+D:\Software\Dev\MiniConda\share\markitdown\models
+```
 
 ## Configure LLMs
 
