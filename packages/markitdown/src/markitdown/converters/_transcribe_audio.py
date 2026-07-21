@@ -1,6 +1,7 @@
 import io
 import math
 import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -20,6 +21,15 @@ _sensevoice_model_lock = threading.Lock()
 SENSEVOICE_CHUNK_THRESHOLD_BYTES = 20 * 1024 * 1024
 SENSEVOICE_MAX_WORKERS = 8
 SENSEVOICE_MODEL_NAME = "iic/SenseVoiceSmall"
+SENSEVOICE_MODEL_DIRNAME = "SenseVoiceSmall"
+SENSEVOICE_REQUIRED_FILES = [
+    "model.pt",
+    "config.yaml",
+    "configuration.json",
+    "tokens.json",
+    "chn_jpn_yue_eng_ko_spectok.bpe.model",
+    "am.mvn",
+]
 
 try:
     import warnings
@@ -48,15 +58,64 @@ except ImportError:
 
 def _get_local_sensevoice_model_path() -> Optional[str]:
     override = os.environ.get("MARKITDOWN_SENSEVOICE_MODEL")
-    if override:
+    if override and _is_sensevoice_model_dir(Path(override)):
         return override
 
-    package_root = Path(__file__).resolve().parents[3]
-    candidate = package_root / "models" / "SenseVoiceSmall"
-    if (candidate / "model.pt").is_file():
-        return str(candidate)
+    for candidate in _sensevoice_model_candidates():
+        if _is_sensevoice_model_dir(candidate):
+            return str(candidate)
 
     return None
+
+
+def _sensevoice_model_candidates() -> list[Path]:
+    package_dir = Path(__file__).resolve().parents[1]
+    source_package_root = Path(__file__).resolve().parents[3]
+    return [
+        _get_env_sensevoice_model_dir(),
+        package_dir / "models" / SENSEVOICE_MODEL_DIRNAME,
+        source_package_root / "models" / SENSEVOICE_MODEL_DIRNAME,
+    ]
+
+
+def _get_env_sensevoice_model_dir() -> Path:
+    return Path(sys.prefix) / "share" / "markitdown" / "models" / SENSEVOICE_MODEL_DIRNAME
+
+
+def _is_sensevoice_model_dir(path: Path) -> bool:
+    return all((path / name).is_file() for name in SENSEVOICE_REQUIRED_FILES)
+
+
+def _find_cached_sensevoice_model_dir() -> Optional[Path]:
+    cache_root = Path.home() / ".cache" / "modelscope" / "models" / "iic--SenseVoiceSmall" / "snapshots"
+    if not cache_root.is_dir():
+        return None
+    for candidate in sorted(cache_root.iterdir(), reverse=True):
+        if candidate.is_dir() and _is_sensevoice_model_dir(candidate):
+            return candidate
+    return None
+
+
+def install_sensevoice_model(source_dir: Optional[str] = None) -> str:
+    """Copy SenseVoiceSmall model files into the current Python environment."""
+    if source_dir:
+        source = Path(source_dir)
+    else:
+        current = _get_local_sensevoice_model_path()
+        source = Path(current) if current else (_find_cached_sensevoice_model_dir() or Path())
+
+    if not source or not _is_sensevoice_model_dir(source):
+        raise FileNotFoundError(
+            "SenseVoiceSmall model files were not found. Download them from "
+            "https://www.modelscope.cn/models/iic/SenseVoiceSmall and pass the directory "
+            "to --install-sensevoice-model."
+        )
+
+    target = _get_env_sensevoice_model_dir()
+    target.mkdir(parents=True, exist_ok=True)
+    for name in SENSEVOICE_REQUIRED_FILES:
+        shutil.copy2(source / name, target / name)
+    return str(target)
 
 
 def _get_sensevoice_model(device: str = "cpu"):

@@ -95,8 +95,24 @@ YouTube conversion also includes a `Source URL` line so generated Markdown can b
 SenseVoice is loaded in this order:
 
 1. `MARKITDOWN_SENSEVOICE_MODEL` environment variable, if set.
-2. Project-local model directory: `packages/markitdown/models/SenseVoiceSmall`.
-3. ModelScope model name: `iic/SenseVoiceSmall`.
+2. Current Python environment directory: `<python-prefix>/share/markitdown/models/SenseVoiceSmall`.
+3. Package-local model directory, if packaged with the installation.
+4. Source-tree model directory: `packages/markitdown/models/SenseVoiceSmall`.
+5. ModelScope model name: `iic/SenseVoiceSmall`.
+
+After installing the package, install/copy the SenseVoice model into the Python environment used by `markitdown.exe`:
+
+```bash
+markitdown --install-sensevoice-model
+```
+
+Or pass a downloaded SenseVoice model directory explicitly:
+
+```bash
+markitdown --install-sensevoice-model "D:/models/SenseVoiceSmall"
+```
+
+After this step, `markitdown.exe` can be run from any working directory without depending on the source project path.
 
 For portable/offline sharing, place these files under `packages/markitdown/models/SenseVoiceSmall`:
 
@@ -117,6 +133,12 @@ Target path:
 
 ```text
 packages/markitdown/models/SenseVoiceSmall/model.pt
+```
+
+Recommended installed-environment target path:
+
+```text
+<python-prefix>/share/markitdown/models/SenseVoiceSmall/model.pt
 ```
 
 The remaining small config/token files should be kept in the same `SenseVoiceSmall` directory. If they are missing, download the full `iic/SenseVoiceSmall` snapshot from ModelScope or let `funasr`/ModelScope download it once, then copy the files into this directory.

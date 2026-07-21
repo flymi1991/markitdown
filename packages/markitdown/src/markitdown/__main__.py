@@ -151,6 +151,14 @@ def main():
         help="Number of workers for SenseVoice chunk transcription. Default: 8.",
     )
 
+    parser.add_argument(
+        "--install-sensevoice-model",
+        nargs="?",
+        const="",
+        metavar="MODEL_DIR",
+        help="Copy SenseVoiceSmall model files into this Python environment. Optionally pass the model directory.",
+    )
+
     parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
@@ -211,6 +219,18 @@ def main():
             print(
                 "\nUse the -p (or --use-plugins) option to enable 3rd-party plugins.\n"
             )
+        sys.exit(0)
+
+    if args.install_sensevoice_model is not None:
+        from .converters._transcribe_audio import install_sensevoice_model
+
+        source_dir = args.install_sensevoice_model or None
+        try:
+            target_dir = install_sensevoice_model(source_dir)
+        except Exception as exc:
+            _exit_with_error(str(exc))
+            return
+        print(f"SenseVoiceSmall model installed to: {target_dir}")
         sys.exit(0)
 
     if args.use_docintel:

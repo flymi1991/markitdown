@@ -76,8 +76,24 @@ The generated Markdown includes the original source URL, video metadata, descrip
 SenseVoice is used as the primary ASR backend when `funasr` is installed. The loader checks:
 
 1. `MARKITDOWN_SENSEVOICE_MODEL`
-2. `packages/markitdown/models/SenseVoiceSmall`
-3. `iic/SenseVoiceSmall` via ModelScope
+2. `<python-prefix>/share/markitdown/models/SenseVoiceSmall`
+3. Package-local model directory
+4. Source-tree directory: `packages/markitdown/models/SenseVoiceSmall`
+5. `iic/SenseVoiceSmall` via ModelScope
+
+Install/copy the model into the Python environment used by `markitdown.exe`:
+
+```bash
+markitdown --install-sensevoice-model
+```
+
+Or pass a model directory explicitly:
+
+```bash
+markitdown --install-sensevoice-model "D:/models/SenseVoiceSmall"
+```
+
+After this, `markitdown.exe` can be run from any directory without relying on the source project path.
 
 For portable sharing, include the SenseVoice model files in `packages/markitdown/models/SenseVoiceSmall`.
 
