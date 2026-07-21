@@ -50,6 +50,14 @@ For Bilibili video URLs, the CLI enables audio transcription by default:
 markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md
 ```
 
+Interactive mode is also supported:
+
+```bash
+markitdown
+Input file path or URL: https://www.bilibili.com/video/BVxxxxxxx
+Output Markdown file path: bilibili_output.md
+```
+
 Optional controls:
 
 ```bash

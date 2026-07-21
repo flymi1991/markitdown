@@ -162,6 +162,8 @@ def main():
     parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
+    _prompt_for_missing_cli_args(args)
+
     # Parse the extension hint
     extension_hint = args.extension
     if extension_hint is not None:
@@ -317,6 +319,18 @@ def _is_bilibili_video_url(value: str | None) -> bool:
         return False
     value = value.lower()
     return ("bilibili.com/video/bv" in value) or ("b23.tv" in value)
+
+
+def _prompt_for_missing_cli_args(args: argparse.Namespace) -> None:
+    if args.filename is None and sys.stdin.isatty():
+        value = input("Input file path or URL: ").strip()
+        if value:
+            args.filename = value
+
+    if args.output is None and sys.stdout.isatty():
+        value = input("Output Markdown file path: ").strip()
+        if value:
+            args.output = value
 
 
 def _exit_with_error(message: str):

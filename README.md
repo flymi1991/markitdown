@@ -50,6 +50,14 @@ After installing the package, Bilibili videos can be converted directly from the
 markitdown "https://www.bilibili.com/video/BVxxxxxxx" -o bilibili_output.md
 ```
 
+If you run `markitdown` without arguments in an interactive terminal, it prompts for the input URL/file path and the output Markdown path:
+
+```bash
+markitdown
+Input file path or URL: https://www.bilibili.com/video/BVxxxxxxx
+Output Markdown file path: bilibili_output.md
+```
+
 To adjust parallel SenseVoice transcription workers:
 
 ```bash
