@@ -162,6 +162,36 @@ def main():
     parser.add_argument("filename", nargs="?")
     args = parser.parse_args()
 
+    if args.list_plugins:
+        # List installed plugins, then exit. This must run before prompting for
+        # conversion input because no filename/output is needed for this command.
+        print("Installed MarkItDown 3rd-party Plugins:\n")
+        plugin_entry_points = list(entry_points(group="markitdown.plugin"))
+        if len(plugin_entry_points) == 0:
+            print("  * No 3rd-party plugins installed.")
+            print(
+                "\nFind plugins by searching for the hashtag #markitdown-plugin on GitHub.\n"
+            )
+        else:
+            for entry_point in plugin_entry_points:
+                print(f"  * {entry_point.name:<16}\t(package: {entry_point.value})")
+            print(
+                "\nUse the -p (or --use-plugins) option to enable 3rd-party plugins.\n"
+            )
+        sys.exit(0)
+
+    if args.install_sensevoice_model is not None:
+        from .converters._transcribe_audio import install_sensevoice_model
+
+        source_dir = args.install_sensevoice_model or None
+        try:
+            target_dir = install_sensevoice_model(source_dir)
+        except Exception as exc:
+            _exit_with_error(str(exc))
+            return
+        print(f"SenseVoiceSmall model installed to: {target_dir}")
+        sys.exit(0)
+
     _prompt_for_missing_cli_args(args)
 
     # Parse the extension hint
@@ -205,35 +235,6 @@ def main():
         stream_info = StreamInfo(
             extension=extension_hint, mimetype=mime_type_hint, charset=charset_hint
         )
-
-    if args.list_plugins:
-        # List installed plugins, then exit
-        print("Installed MarkItDown 3rd-party Plugins:\n")
-        plugin_entry_points = list(entry_points(group="markitdown.plugin"))
-        if len(plugin_entry_points) == 0:
-            print("  * No 3rd-party plugins installed.")
-            print(
-                "\nFind plugins by searching for the hashtag #markitdown-plugin on GitHub.\n"
-            )
-        else:
-            for entry_point in plugin_entry_points:
-                print(f"  * {entry_point.name:<16}\t(package: {entry_point.value})")
-            print(
-                "\nUse the -p (or --use-plugins) option to enable 3rd-party plugins.\n"
-            )
-        sys.exit(0)
-
-    if args.install_sensevoice_model is not None:
-        from .converters._transcribe_audio import install_sensevoice_model
-
-        source_dir = args.install_sensevoice_model or None
-        try:
-            target_dir = install_sensevoice_model(source_dir)
-        except Exception as exc:
-            _exit_with_error(str(exc))
-            return
-        print(f"SenseVoiceSmall model installed to: {target_dir}")
-        sys.exit(0)
 
     from ._markitdown import MarkItDown
 

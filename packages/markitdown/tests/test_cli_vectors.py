@@ -4,6 +4,7 @@ import time
 import pytest
 import subprocess
 import locale
+import sys
 from typing import List
 
 if __name__ == "__main__":
@@ -179,6 +180,28 @@ def test_output_to_file_with_data_uris(shared_tmp_dir, test_vector) -> None:
 
     os.remove(output_file)
     assert not os.path.exists(output_file), f"Output file not deleted: {output_file}"
+
+
+def test_list_plugins_does_not_prompt(monkeypatch) -> None:
+    """--list-plugins should not ask for input/output paths."""
+
+    class InteractiveStdin:
+        def isatty(self):
+            return True
+
+    def fail_if_prompted(prompt):
+        pytest.fail(f"Unexpected prompt: {prompt}")
+
+    from markitdown.__main__ import main
+
+    monkeypatch.setattr(sys, "argv", ["markitdown", "--list-plugins"])
+    monkeypatch.setattr(sys, "stdin", InteractiveStdin())
+    monkeypatch.setattr("builtins.input", fail_if_prompted)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 0
 
 
 if __name__ == "__main__":

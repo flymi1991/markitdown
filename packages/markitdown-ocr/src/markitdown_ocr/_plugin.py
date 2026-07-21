@@ -5,6 +5,7 @@ Registers OCR-enhanced converters with priority-based replacement strategy.
 
 from typing import Any
 from markitdown import MarkItDown
+from markitdown import _config as markitdown_config
 
 from ._ocr_service import LLMVisionOCRService
 from ._pdf_converter_with_ocr import PdfConverterWithOCR
@@ -28,14 +29,14 @@ def register_converters(markitdown: MarkItDown, **kwargs: Any) -> None:
     Args:
         markitdown: MarkItDown instance to register converters with
         **kwargs: Additional keyword arguments that may include:
-            - llm_client: OpenAI-compatible client for LLM-based OCR (required for OCR to work)
-            - llm_model: Model name (e.g., 'gpt-4o')
+            - llm_client: Ignored by OCR; use markitdown_config.json ocr_llm instead
+            - llm_model: Ignored by OCR; use markitdown_config.json ocr_llm instead
             - llm_prompt: Custom prompt for text extraction
     """
-    # Create OCR service — reads the same llm_client/llm_model kwargs
-    # that MarkItDown itself already accepts for image descriptions
-    llm_client = kwargs.get("llm_client")
-    llm_model = kwargs.get("llm_model")
+    # OCR has its own model settings so it does not depend on MarkItDown's
+    # generic --llm-client openai path.
+    llm_client = markitdown_config.create_ocr_llm_client()
+    llm_model = markitdown_config.get_ocr_llm_model()
     llm_prompt = kwargs.get("llm_prompt")
 
     ocr_service: LLMVisionOCRService | None = None

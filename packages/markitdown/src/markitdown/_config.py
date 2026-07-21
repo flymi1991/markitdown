@@ -38,6 +38,11 @@ def get_llm_config() -> Dict[str, Any]:
     return cfg.get("llm", {})
 
 
+def get_ocr_llm_config() -> Dict[str, Any]:
+    cfg = load_config()
+    return cfg.get("ocr_llm", {})
+
+
 def create_llm_client() -> Optional[Any]:
     llm_cfg = get_llm_config()
     api_key = llm_cfg.get("api_key") or os.environ.get("OPENAI_API_KEY")
@@ -51,6 +56,24 @@ def create_llm_client() -> Optional[Any]:
         return None
 
 
+def create_ocr_llm_client() -> Optional[Any]:
+    llm_cfg = get_ocr_llm_config()
+    api_key = llm_cfg.get("api_key")
+    base_url = llm_cfg.get("base_url")
+    if not api_key:
+        return None
+    try:
+        from openai import OpenAI
+        return OpenAI(api_key=api_key, base_url=base_url)
+    except ImportError:
+        return None
+
+
 def get_llm_model() -> Optional[str]:
     llm_cfg = get_llm_config()
     return llm_cfg.get("model") or os.environ.get("OPENAI_MODEL") or "deepseek-chat"
+
+
+def get_ocr_llm_model() -> Optional[str]:
+    llm_cfg = get_ocr_llm_config()
+    return llm_cfg.get("model")
