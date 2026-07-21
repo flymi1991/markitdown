@@ -2,7 +2,7 @@
 
 LLM Vision plugin for MarkItDown that extracts text from images embedded in PDF, DOCX, PPTX, and XLSX files.
 
-Uses the same `llm_client` / `llm_model` pattern that MarkItDown already supports for image descriptions — no new ML libraries or binary dependencies required.
+Uses OpenAI-compatible OCR settings from `markitdown_config.json` - no new ML libraries or binary dependencies required.
 
 ## Features
 
@@ -29,28 +29,41 @@ pip install openai
 ### Command Line
 
 ```bash
-markitdown document.pdf --use-plugins --llm-client openai --llm-model gpt-4o
+markitdown document.pdf --use-plugins
 ```
 
 ### Python API
 
-Pass `llm_client` and `llm_model` to `MarkItDown()` exactly as you would for image descriptions:
+Enable plugins. The OCR model is loaded from the `ocr_llm` section in `markitdown_config.json`:
 
 ```python
 from markitdown import MarkItDown
-from openai import OpenAI
 
 md = MarkItDown(
     enable_plugins=True,
-    llm_client=OpenAI(),
-    llm_model="gpt-4o",
 )
 
 result = md.convert("document_with_images.pdf")
 print(result.text_content)
 ```
 
-If no `llm_client` is provided the plugin still loads, but OCR is silently skipped — falling back to the standard built-in converter.
+If `ocr_llm` is not configured, the plugin still loads, but OCR is silently skipped - falling back to the standard built-in converter.
+
+### Configuration
+
+Place `markitdown_config.json` next to `markitdown.exe` or in the active Python environment's `Scripts` directory:
+
+```json
+{
+  "ocr_llm": {
+    "api_key": "YOUR_API_KEY",
+    "base_url": "https://your-openai-compatible-endpoint.example",
+    "model": "your-vision-model"
+  }
+}
+```
+
+Do not commit real API keys.
 
 ### Custom Prompt
 
@@ -59,37 +72,17 @@ Override the default extraction prompt for specialized documents:
 ```python
 md = MarkItDown(
     enable_plugins=True,
-    llm_client=OpenAI(),
-    llm_model="gpt-4o",
     llm_prompt="Extract all text from this image, preserving table structure.",
-)
-```
-
-### Any OpenAI-Compatible Client
-
-Works with any client that follows the OpenAI API:
-
-```python
-from openai import AzureOpenAI
-
-md = MarkItDown(
-    enable_plugins=True,
-    llm_client=AzureOpenAI(
-        api_key="...",
-        azure_endpoint="https://your-resource.openai.azure.com/",
-        api_version="2024-02-01",
-    ),
-    llm_model="gpt-4o",
 )
 ```
 
 ## How It Works
 
-When `MarkItDown(enable_plugins=True, llm_client=..., llm_model=...)` is called:
+When `MarkItDown(enable_plugins=True)` is called:
 
 1. MarkItDown discovers the plugin via the `markitdown.plugin` entry point group
-2. It calls `register_converters()`, forwarding all kwargs including `llm_client` and `llm_model`
-3. The plugin creates an `LLMVisionOCRService` from those kwargs
+2. It calls `register_converters()`
+3. The plugin creates an `LLMVisionOCRService` from `markitdown_config.json` `ocr_llm`
 4. Four OCR-enhanced converters are registered at **priority -1.0** — before the built-in converters at priority 0.0
 
 When a file is converted:
@@ -118,7 +111,7 @@ When a file is converted:
 
 - Picture shapes, placeholder shapes with images, and images inside groups are all supported.
 - Shapes are processed in top-to-left reading order per slide.
-- If an `llm_client` is configured, the LLM is asked for a description first; OCR is used as the fallback when no description is returned.
+- If `ocr_llm` is configured, the OCR vision model extracts text from slide images.
 
 ### XLSX
 
@@ -140,18 +133,19 @@ Every extracted OCR block is wrapped as:
 
 ### OCR text missing from output
 
-The most likely cause is a missing `llm_client` or `llm_model`. Verify:
+The most likely cause is a missing `ocr_llm` config or a missing OpenAI-compatible client package. Verify `markitdown_config.json`:
 
-```python
-from openai import OpenAI
-from markitdown import MarkItDown
-
-md = MarkItDown(
-    enable_plugins=True,
-    llm_client=OpenAI(),   # required
-    llm_model="gpt-4o",    # required
-)
+```json
+{
+  "ocr_llm": {
+    "api_key": "YOUR_API_KEY",
+    "base_url": "https://your-openai-compatible-endpoint.example",
+    "model": "your-vision-model"
+  }
+}
 ```
+
+Also verify that `openai` is installed and `markitdown --use-plugins` is used.
 
 ### Plugin not loading
 

@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -8,6 +9,8 @@ CONFIG_FILENAME = "markitdown_config.json"
 
 def _find_config() -> Optional[str]:
     candidates = []
+    candidates.append(Path(sys.argv[0]).resolve().parent / CONFIG_FILENAME)
+    candidates.append(Path(sys.prefix) / "Scripts" / CONFIG_FILENAME)
     cwd = Path.cwd()
     candidates.append(cwd / CONFIG_FILENAME)
     pkg_dir = Path(__file__).resolve().parent

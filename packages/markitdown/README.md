@@ -133,7 +133,36 @@ The package can auto-load OpenAI-compatible LLM settings from `markitdown_config
 }
 ```
 
+The config file is discovered from the `markitdown.exe` directory first, then from the active Python environment's `Scripts` directory, and then from the current working directory or its parents. This lets an installed `markitdown.exe` run without depending on the source checkout path.
+
 When configured, Bilibili ASR transcripts are corrected with an LLM by default unless `bilibili_correct_transcript=False` is passed.
+
+### OCR LLM Configuration
+
+When `markitdown-ocr` is installed and plugins are enabled, OCR reads its own OpenAI-compatible settings from the `ocr_llm` section in `markitdown_config.json`:
+
+```json
+{
+  "llm": {
+    "api_key": "YOUR_TRANSCRIPT_API_KEY",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat"
+  },
+  "ocr_llm": {
+    "api_key": "YOUR_OCR_API_KEY",
+    "base_url": "https://your-openai-compatible-endpoint.example",
+    "model": "your-vision-model"
+  }
+}
+```
+
+Run OCR with plugins enabled:
+
+```bash
+markitdown document.pdf --use-plugins
+```
+
+The OCR plugin does not require `--llm-client openai` or `--llm-model`; it uses `ocr_llm` from the config file.
 
 Do not commit real API keys.
 
