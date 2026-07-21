@@ -91,7 +91,14 @@ class AudioConverter(DocumentConverter):
         # Transcribe
         if audio_format:
             try:
-                transcript = transcribe_audio(file_stream, audio_format=audio_format)
+                transcript = transcribe_audio(
+                    file_stream,
+                    audio_format=audio_format,
+                    language=kwargs.get("language"),
+                    whisper_model=kwargs.get("whisper_model", "base"),
+                    sensevoice_device=kwargs.get("sensevoice_device", "cpu"),
+                    sensevoice_workers=kwargs.get("sensevoice_workers", 8),
+                )
                 if transcript:
                     md_content += "\n\n### Audio Transcript:\n" + transcript
             except MissingDependencyException:

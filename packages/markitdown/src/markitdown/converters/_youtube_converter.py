@@ -22,6 +22,13 @@ try:
 except ModuleNotFoundError:
     IS_YOUTUBE_TRANSCRIPT_CAPABLE = False
 
+# Optional Chinese text conversion support
+try:
+    import zhconv
+    IS_ZHCONV_CAPABLE = True
+except ModuleNotFoundError:
+    IS_ZHCONV_CAPABLE = False
+
 
 ACCEPTED_MIME_TYPE_PREFIXES = [
     "text/html",
@@ -116,7 +123,7 @@ class YouTubeConverter(DocumentConverter):
             pass
 
         # Start preparing the page
-        webpage_text = "# YouTube\n"
+        webpage_text = f"# YouTube\n\n- **Source URL:** {stream_info.url}\n"
 
         title = self._get(metadata, ["title", "og:title", "name"])  # type: ignore
         assert isinstance(title, str)
@@ -187,6 +194,11 @@ class YouTubeConverter(DocumentConverter):
                         transcript_text = " ".join([part.text for part in transcript])
             if transcript_text:
                 webpage_text += f"\n### Transcript\n{transcript_text}\n"
+
+        # Convert to Simplified Chinese if requested
+        if kwargs.get("convert_to_simplified_chinese") and IS_ZHCONV_CAPABLE:
+            webpage_text = zhconv.convert(webpage_text, "zh-hans")
+            title = zhconv.convert(title, "zh-hans")
 
         title = title if title else (soup.title.string if soup.title else "")
         assert isinstance(title, str)

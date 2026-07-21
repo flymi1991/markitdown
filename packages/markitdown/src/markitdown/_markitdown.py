@@ -19,6 +19,8 @@ import codecs
 from ._stream_info import StreamInfo
 from ._uri_utils import parse_data_uri, file_uri_to_path
 
+from . import _config as _markitdown_config
+
 from .converters import (
     PlainTextConverter,
     HtmlConverter,
@@ -40,6 +42,7 @@ from .converters import (
     DocumentIntelligenceConverter,
     ContentUnderstandingConverter,
     CsvConverter,
+    BilibiliConverter,
 )
 
 from ._base_converter import DocumentConverter, DocumentConverterResult
@@ -149,6 +152,11 @@ class MarkItDown:
             self._llm_client = kwargs.get("llm_client")
             self._llm_model = kwargs.get("llm_model")
             self._llm_prompt = kwargs.get("llm_prompt")
+
+            if self._llm_client is None:
+                self._llm_client = _markitdown_config.create_llm_client()
+            if self._llm_model is None:
+                self._llm_model = _markitdown_config.get_llm_model()
             self._exiftool_path = kwargs.get("exiftool_path")
             self._style_map = kwargs.get("style_map")
 
@@ -203,6 +211,7 @@ class MarkItDown:
             self.register_converter(OutlookMsgConverter())
             self.register_converter(EpubConverter())
             self.register_converter(CsvConverter())
+            self.register_converter(BilibiliConverter())
 
             # Register Document Intelligence converter at the top of the stack if endpoint is provided
             docintel_endpoint = kwargs.get("docintel_endpoint")
@@ -473,7 +482,9 @@ class MarkItDown:
         # HTTP/HTTPS URIs
         elif uri.startswith("http:") or uri.startswith("https:"):
             response = self._requests_session.get(uri, stream=True)
-            response.raise_for_status()
+            # Don't raise on 4xx for Bilibili (anti-crawl) - let converters handle it
+            if not any(d in uri for d in ["bilibili.com", "b23.tv"]):
+                response.raise_for_status()
             return self.convert_response(
                 response,
                 stream_info=stream_info,

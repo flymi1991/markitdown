@@ -166,3 +166,9 @@ cython_debug/
 src/.DS_Store
 .DS_Store
 .cursorrules
+
+# Local project config and generated conversion outputs
+packages/markitdown/markitdown_config.json
+packages/markitdown/models/SenseVoiceSmall/model.pt
+test_outputs/
+_fix_asr.py

@@ -1,7 +1,7 @@
-# MarkItDown
+# MarkItDown Video/ASR Edition
 
 > [!TIP]
-> MarkItDown is a Python package and command-line utility for converting various files to Markdown (e.g., for indexing, text analysis, etc). 
+> This package is based on Microsoft's open-source MarkItDown and adds Bilibili/YouTube video-to-Markdown, local SenseVoice ASR, and optional OpenAI-compatible LLM transcript correction.
 >
 > For more information, and full documentation, see the project [README.md](https://github.com/microsoft/markitdown) on GitHub.
 
@@ -41,6 +41,64 @@ md = MarkItDown()
 result = md.convert("test.xlsx")
 print(result.text_content)
 ```
+
+### Bilibili Video To Markdown
+
+```python
+from markitdown import MarkItDown
+
+md = MarkItDown()
+result = md.convert(
+    "https://www.bilibili.com/video/BVxxxxxxx",
+    bilibili_transcribe_audio=True,
+    sensevoice_workers=8,
+)
+print(result.text_content)
+```
+
+The generated Markdown includes the original source URL, video metadata, description, and transcript when subtitles or audio transcription are available.
+
+### Local SenseVoice Model
+
+SenseVoice is used as the primary ASR backend when `funasr` is installed. The loader checks:
+
+1. `MARKITDOWN_SENSEVOICE_MODEL`
+2. `packages/markitdown/models/SenseVoiceSmall`
+3. `iic/SenseVoiceSmall` via ModelScope
+
+For portable sharing, include the SenseVoice model files in `packages/markitdown/models/SenseVoiceSmall`.
+
+If `model.pt` is not already present, download it from ModelScope:
+
+```text
+https://www.modelscope.cn/models/iic/SenseVoiceSmall/resolve/master/model.pt
+```
+
+Save it to:
+
+```text
+packages/markitdown/models/SenseVoiceSmall/model.pt
+```
+
+Keep the related SenseVoice config/token files in the same directory. If they are missing, download the full `iic/SenseVoiceSmall` snapshot from ModelScope or let `funasr` download it once, then copy the files into `packages/markitdown/models/SenseVoiceSmall`.
+
+### LLM Transcript Correction
+
+The package can auto-load OpenAI-compatible LLM settings from `markitdown_config.json`:
+
+```json
+{
+  "llm": {
+    "api_key": "YOUR_API_KEY",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat"
+  }
+}
+```
+
+When configured, Bilibili ASR transcripts are corrected with an LLM by default unless `bilibili_correct_transcript=False` is passed.
+
+Do not commit real API keys.
 
 ### More Information
 

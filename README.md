@@ -1,4 +1,10 @@
-# MarkItDown
+# MarkItDown Video/ASR Edition
+
+This repository is a local adaptation of Microsoft's open-source
+[MarkItDown](https://github.com/microsoft/markitdown). The original project is a
+general-purpose file-to-Markdown converter. This version keeps that foundation
+and adds a video-to-Markdown workflow focused on Bilibili/YouTube videos, local
+ASR transcription, and optional LLM transcript correction.
 
 [![PyPI](https://img.shields.io/pypi/v/markitdown.svg)](https://pypi.org/project/markitdown/)
 ![PyPI - Downloads](https://img.shields.io/pypi/dd/markitdown)
@@ -7,7 +13,16 @@
 > [!IMPORTANT]
 > MarkItDown performs I/O with the privileges of the current process. Like open() or requests.get(), it will access resources that the process itself can access. Sanitize your inputs in untrusted environments, and call the narrowest `convert_*` function needed for your use case (e.g., `convert_stream()`, or `convert_local()`). See the [Security Considerations](#security-considerations) section of the documentation for more information.
 
-MarkItDown is a lightweight Python utility for converting various files to Markdown for use with LLMs and related text analysis pipelines. To this end, it is most comparable to [textract](https://github.com/deanmalmgren/textract), but with a focus on preserving important document structure and content as Markdown (including: headings, lists, tables, links, etc.) While the output is often reasonably presentable and human-friendly, it is meant to be consumed by text analysis tools -- and may not be the best option for high-fidelity document conversions for human consumption.
+MarkItDown is a lightweight Python utility for converting various files to Markdown for use with LLMs and related text analysis pipelines. This fork extends the upstream behavior with:
+
+- Bilibili video page conversion, including title, metadata, description, source URL, subtitles when available, and audio transcription fallback.
+- YouTube Markdown output with source URL preservation for traceability.
+- Local SenseVoice transcription as the primary ASR backend, with Whisper and Google Speech Recognition fallbacks.
+- Parallel chunked audio transcription for long videos.
+- Optional OpenAI-compatible LLM transcript correction, tested with DeepSeek-compatible endpoints.
+- Project-local SenseVoice model loading from `packages/markitdown/models/SenseVoiceSmall` for offline packaging and sharing.
+
+The output is intended for indexing, text analysis, LLM ingestion, and lightweight human review. It is not intended to be a high-fidelity subtitle editor.
 
 MarkItDown currently supports the conversion from:
 
@@ -21,8 +36,94 @@ MarkItDown currently supports the conversion from:
 - Text-based formats (CSV, JSON, XML)
 - ZIP files (iterates over contents)
 - Youtube URLs
+- Bilibili URLs
 - EPubs
 - ... and more!
+
+## Added Video Workflow
+
+### Bilibili To Markdown
+
+The Bilibili converter supports video metadata, descriptions, subtitles, and audio transcription fallback:
+
+```python
+from markitdown import MarkItDown
+
+md = MarkItDown()
+result = md.convert(
+    "https://www.bilibili.com/video/BVxxxxxxx",
+    bilibili_transcribe_audio=True,
+    sensevoice_workers=8,
+)
+print(result.text_content)
+```
+
+Generated Markdown includes the original video URL:
+
+```markdown
+# Bilibili
+
+- **Source URL:** https://www.bilibili.com/video/BVxxxxxxx
+
+## Video title
+```
+
+### YouTube Source URLs
+
+YouTube conversion also includes a `Source URL` line so generated Markdown can be traced back to the original video.
+
+### Local SenseVoice Model
+
+SenseVoice is loaded in this order:
+
+1. `MARKITDOWN_SENSEVOICE_MODEL` environment variable, if set.
+2. Project-local model directory: `packages/markitdown/models/SenseVoiceSmall`.
+3. ModelScope model name: `iic/SenseVoiceSmall`.
+
+For portable/offline sharing, place these files under `packages/markitdown/models/SenseVoiceSmall`:
+
+- `model.pt`
+- `config.yaml`
+- `configuration.json`
+- `tokens.json`
+- `chn_jpn_yue_eng_ko_spectok.bpe.model`
+- `am.mvn`
+
+If `model.pt` is not included in your local copy, download it from ModelScope and place it in the project-local model directory:
+
+```text
+https://www.modelscope.cn/models/iic/SenseVoiceSmall/resolve/master/model.pt
+```
+
+Target path:
+
+```text
+packages/markitdown/models/SenseVoiceSmall/model.pt
+```
+
+The remaining small config/token files should be kept in the same `SenseVoiceSmall` directory. If they are missing, download the full `iic/SenseVoiceSmall` snapshot from ModelScope or let `funasr`/ModelScope download it once, then copy the files into this directory.
+
+### LLM Transcript Correction
+
+The Bilibili converter can use an OpenAI-compatible client to clean ASR output. The project config file is:
+
+`packages/markitdown/markitdown_config.json`
+
+Example:
+
+```json
+{
+  "llm": {
+    "api_key": "YOUR_API_KEY",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat"
+  }
+}
+```
+
+The correction prompt is designed to remove non-speech markers, repair punctuation and paragraphing, correct product/model names, and recover missing domain terms when the surrounding context strongly supports the correction. It should not invent unsupported facts, numbers, examples, or timestamps.
+
+> Do not commit real API keys. Use a local config file or environment variables for private credentials.
 
 ## Why Markdown?
 
