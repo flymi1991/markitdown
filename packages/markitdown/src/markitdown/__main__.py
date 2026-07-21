@@ -156,7 +156,7 @@ def main():
         nargs="?",
         const="",
         metavar="MODEL_DIR",
-        help="Copy SenseVoiceSmall model files into this Python environment. Optionally pass the model directory.",
+        help="Copy SenseVoiceSmall model files next to markitdown.exe. Optionally pass the model directory.",
     )
 
     parser.add_argument("filename", nargs="?")

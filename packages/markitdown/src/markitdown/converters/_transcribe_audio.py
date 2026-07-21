@@ -53,9 +53,13 @@ def _get_local_sensevoice_model_path() -> Optional[str]:
 
 
 def _sensevoice_model_candidates() -> list[Path]:
+    executable_dir = _get_markitdown_executable_dir()
     package_dir = Path(__file__).resolve().parents[1]
     source_package_root = Path(__file__).resolve().parents[3]
     return [
+        executable_dir,
+        executable_dir / SENSEVOICE_MODEL_DIRNAME,
+        executable_dir / "models" / SENSEVOICE_MODEL_DIRNAME,
         _get_env_sensevoice_model_dir(),
         package_dir / "models" / SENSEVOICE_MODEL_DIRNAME,
         source_package_root / "models" / SENSEVOICE_MODEL_DIRNAME,
@@ -64,6 +68,22 @@ def _sensevoice_model_candidates() -> list[Path]:
 
 def _get_env_sensevoice_model_dir() -> Path:
     return Path(sys.prefix) / "share" / "markitdown" / "models" / SENSEVOICE_MODEL_DIRNAME
+
+
+def _get_executable_sensevoice_model_dir() -> Path:
+    return _get_markitdown_executable_dir()
+
+
+def _get_markitdown_executable_dir() -> Path:
+    argv0 = Path(sys.argv[0])
+    if argv0.name.lower() in {"markitdown", "markitdown.exe"}:
+        return argv0.resolve().parent
+
+    executable = shutil.which("markitdown")
+    if executable:
+        return Path(executable).resolve().parent
+
+    return Path(sys.prefix) / "Scripts"
 
 
 def _is_sensevoice_model_dir(path: Path) -> bool:
@@ -95,7 +115,7 @@ def install_sensevoice_model(source_dir: Optional[str] = None) -> str:
             "to --install-sensevoice-model."
         )
 
-    target = _get_env_sensevoice_model_dir()
+    target = _get_executable_sensevoice_model_dir()
     target.mkdir(parents=True, exist_ok=True)
     for name in SENSEVOICE_REQUIRED_FILES:
         shutil.copy2(source / name, target / name)

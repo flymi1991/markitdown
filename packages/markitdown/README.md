@@ -84,12 +84,15 @@ The generated Markdown includes the original source URL, video metadata, descrip
 SenseVoice is used as the primary ASR backend when `funasr` is installed. The loader checks:
 
 1. `MARKITDOWN_SENSEVOICE_MODEL`
-2. `<python-prefix>/share/markitdown/models/SenseVoiceSmall`
-3. Package-local model directory
-4. Source-tree directory: `packages/markitdown/models/SenseVoiceSmall`
-5. `iic/SenseVoiceSmall` via ModelScope
+2. The `markitdown.exe` directory itself
+3. `SenseVoiceSmall` under the `markitdown.exe` directory
+4. `models/SenseVoiceSmall` under the `markitdown.exe` directory
+5. `<python-prefix>/share/markitdown/models/SenseVoiceSmall`
+6. Package-local model directory
+7. Source-tree directory: `packages/markitdown/models/SenseVoiceSmall`
+8. `iic/SenseVoiceSmall` via ModelScope
 
-Install/copy the model into the Python environment used by `markitdown.exe`:
+Install/copy the model files next to `markitdown.exe`:
 
 ```bash
 markitdown --install-sensevoice-model
@@ -111,13 +114,13 @@ If `model.pt` is not already present, download it from ModelScope:
 https://www.modelscope.cn/models/iic/SenseVoiceSmall/resolve/master/model.pt
 ```
 
-Save it to:
+For an installed environment, save it next to `markitdown.exe`:
 
 ```text
-packages/markitdown/models/SenseVoiceSmall/model.pt
+<markitdown.exe directory>/model.pt
 ```
 
-Keep the related SenseVoice config/token files in the same directory. If they are missing, download the full `iic/SenseVoiceSmall` snapshot from ModelScope or let `funasr` download it once, then copy the files into `packages/markitdown/models/SenseVoiceSmall`.
+Keep the related SenseVoice config/token files in the same directory. If they are missing, download the full `iic/SenseVoiceSmall` snapshot from ModelScope or let `funasr` download it once, then copy the files next to `markitdown.exe`.
 
 ### LLM Transcript Correction
 
