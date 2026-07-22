@@ -1,6 +1,6 @@
 # MarkItDown OCR Plugin
 
-LLM Vision plugin for MarkItDown that extracts text from images embedded in PDF, DOCX, PPTX, and XLSX files.
+LLM Vision plugin for MarkItDown that extracts text from standalone JPG/PNG images and images embedded in PDF, DOCX, PPTX, and XLSX files.
 
 Uses OpenAI-compatible OCR settings from `markitdown_config.json` - no new ML libraries or binary dependencies required.
 
@@ -10,6 +10,7 @@ Uses OpenAI-compatible OCR settings from `markitdown_config.json` - no new ML li
 - **Enhanced DOCX Converter**: OCR for images in Word documents
 - **Enhanced PPTX Converter**: OCR for images in PowerPoint presentations
 - **Enhanced XLSX Converter**: OCR for images in Excel spreadsheets
+- **Enhanced Image Converter**: OCR for standalone JPG, JPEG, and PNG files
 - **Context Preservation**: Maintains document structure and flow when inserting extracted text
 
 ## Installation

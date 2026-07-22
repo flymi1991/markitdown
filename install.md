@@ -117,7 +117,7 @@ Convert a local document:
 markitdown "document.pdf" -o "document.md"
 ```
 
-Use OCR for images embedded in PDF, DOCX, PPTX, or XLSX:
+Use OCR for standalone JPG/PNG images or images embedded in PDF, DOCX, PPTX, or XLSX:
 
 ```powershell
 markitdown "document.pdf" --use-plugins -o "document.md"

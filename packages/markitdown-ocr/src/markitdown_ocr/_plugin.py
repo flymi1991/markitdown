@@ -12,6 +12,7 @@ from ._pdf_converter_with_ocr import PdfConverterWithOCR
 from ._docx_converter_with_ocr import DocxConverterWithOCR
 from ._pptx_converter_with_ocr import PptxConverterWithOCR
 from ._xlsx_converter_with_ocr import XlsxConverterWithOCR
+from ._image_converter_with_ocr import ImageConverterWithOCR
 
 
 __plugin_interface_version__ = 1
@@ -66,4 +67,8 @@ def register_converters(markitdown: MarkItDown, **kwargs: Any) -> None:
 
     markitdown.register_converter(
         XlsxConverterWithOCR(ocr_service=ocr_service), priority=PRIORITY_OCR_ENHANCED
+    )
+
+    markitdown.register_converter(
+        ImageConverterWithOCR(ocr_service=ocr_service), priority=PRIORITY_OCR_ENHANCED
     )

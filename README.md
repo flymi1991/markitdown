@@ -279,7 +279,7 @@ To find available plugins, search GitHub for the hashtag `#markitdown-plugin`. T
 
 #### markitdown-ocr Plugin
 
-The `markitdown-ocr` plugin adds OCR support to PDF, DOCX, PPTX, and XLSX converters, extracting text from embedded images using LLM Vision — the same `llm_client` / `llm_model` pattern that MarkItDown already uses for image descriptions. No new ML libraries or binary dependencies required.
+The `markitdown-ocr` plugin adds OCR support for standalone JPG/PNG images and for images embedded in PDF, DOCX, PPTX, and XLSX files. It uses the `ocr_llm` section in `markitdown_config.json`. No new ML libraries or binary dependencies required.
 
 **Installation:**
 
@@ -290,22 +290,24 @@ pip install openai  # or any OpenAI-compatible client
 
 **Usage:**
 
-Pass the same `llm_client` and `llm_model` you would use for image descriptions:
+Configure `ocr_llm`, then enable plugins:
+
+```bash
+markitdown document.pdf --use-plugins -o document.md
+markitdown image.jpg --use-plugins -o image.md
+```
 
 ```python
 from markitdown import MarkItDown
-from openai import OpenAI
 
 md = MarkItDown(
     enable_plugins=True,
-    llm_client=OpenAI(),
-    llm_model="gpt-4o",
 )
 result = md.convert("document_with_images.pdf")
 print(result.text_content)
 ```
 
-If no `llm_client` is provided the plugin still loads, but OCR is silently skipped and the standard built-in converter is used instead.
+If `ocr_llm` is not configured, the plugin still loads, but OCR is silently skipped and the standard built-in converter is used instead.
 
 See [`packages/markitdown-ocr/README.md`](packages/markitdown-ocr/README.md) for detailed documentation.
 
