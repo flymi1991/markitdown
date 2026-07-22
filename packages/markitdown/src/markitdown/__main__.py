@@ -145,6 +145,12 @@ def main():
     )
 
     parser.add_argument(
+        "--no-youtube-audio",
+        action="store_true",
+        help="Disable automatic audio transcription fallback for YouTube video URLs.",
+    )
+
+    parser.add_argument(
         "--sensevoice-workers",
         type=int,
         default=8,
@@ -289,6 +295,10 @@ def main():
         convert_kwargs["bilibili_transcribe_audio"] = True
         convert_kwargs["sensevoice_workers"] = args.sensevoice_workers
 
+    if _is_youtube_video_url(args.filename) and not args.no_youtube_audio:
+        convert_kwargs["youtube_transcribe_audio"] = True
+        convert_kwargs["sensevoice_workers"] = args.sensevoice_workers
+
     if args.filename is None:
         result = markitdown.convert_stream(
             sys.stdin.buffer,
@@ -322,6 +332,13 @@ def _is_bilibili_video_url(value: str | None) -> bool:
         return False
     value = value.lower()
     return ("bilibili.com/video/bv" in value) or ("b23.tv" in value)
+
+
+def _is_youtube_video_url(value: str | None) -> bool:
+    if value is None:
+        return False
+    value = value.lower()
+    return "youtube.com/watch?" in value or "youtu.be/" in value
 
 
 def _prompt_for_missing_cli_args(args: argparse.Namespace) -> None:

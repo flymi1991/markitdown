@@ -1,12 +1,17 @@
 import json
+import os
+import shutil
+import subprocess
 import time
 import re
+import tempfile
 import bs4
 from typing import Any, BinaryIO, Dict, List, Union
 from urllib.parse import parse_qs, urlparse, unquote
 
 from .._base_converter import DocumentConverter, DocumentConverterResult
 from .._stream_info import StreamInfo
+from ._transcribe_audio import transcribe_audio
 
 # Optional YouTube transcription support
 try:
@@ -43,6 +48,96 @@ ACCEPTED_FILE_EXTENSIONS = [
 
 class YouTubeConverter(DocumentConverter):
     """Handle YouTube specially, focusing on the video title, description, and transcript."""
+
+    def _download_audio(self, url: str, audio_format: str = "mp3") -> str:
+        """Download YouTube audio with yt-dlp and return a local file path."""
+        if shutil.which("yt-dlp") is None:
+            raise RuntimeError("yt-dlp is required for YouTube audio transcription")
+
+        tmp_dir = tempfile.mkdtemp(prefix="markitdown_youtube_")
+        output_template = os.path.join(tmp_dir, "audio.%(ext)s")
+        try:
+            subprocess.run(
+                [
+                    "yt-dlp",
+                    "--no-playlist",
+                    "-x",
+                    "--audio-format",
+                    audio_format,
+                    "-o",
+                    output_template,
+                    url,
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except Exception:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise
+
+        audio_path = os.path.join(tmp_dir, f"audio.{audio_format}")
+        if os.path.exists(audio_path):
+            return audio_path
+
+        for name in os.listdir(tmp_dir):
+            if name.startswith("audio."):
+                return os.path.join(tmp_dir, name)
+
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise RuntimeError("yt-dlp completed but no audio file was produced")
+
+    def _transcribe_audio_from_url(
+        self,
+        url: str,
+        *,
+        language: Union[str, None],
+        sensevoice_workers: int,
+    ) -> str:
+        audio_path = self._download_audio(url, "mp3")
+        tmp_dir = os.path.dirname(audio_path)
+        try:
+            with open(audio_path, "rb") as audio_stream:
+                return transcribe_audio(
+                    audio_stream,
+                    audio_format="mp3",
+                    language=language,
+                    sensevoice_workers=sensevoice_workers,
+                )
+        finally:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    def _correct_markdown_with_llm(
+        self,
+        markdown: str,
+        *,
+        client: Any,
+        model: str,
+        language: Union[str, None],
+        prompt: Union[str, None] = None,
+    ) -> str:
+        """Ask an LLM to clean up ASR mistakes in the generated Markdown."""
+        if prompt is None or prompt.strip() == "":
+            prompt = (
+                "You are an ASR transcript correction editor. Correct the Markdown transcript generated "
+                "from a YouTube video without summarizing or omitting content. Preserve the top-level "
+                "Markdown structure, title, Source URL, metadata, description, headings, and meaning. "
+                "Rewrite only the transcript text where needed. Remove non-speech ASR event markers, "
+                "fix obvious ASR mistakes, punctuation, sentence boundaries, names, technical terms, "
+                "and broken phrases. Do not invent facts, examples, timestamps, numbers, or claims. "
+                "Return only the complete corrected Markdown. "
+                f"Transcript language hint: {language or 'auto'}."
+            )
+
+        messages = [
+            {
+                "role": "user",
+                "content": f"{prompt}\n\n--- Markdown to correct ---\n{markdown}",
+            }
+        ]
+        response = client.chat.completions.create(model=model, messages=messages)
+        content = response.choices[0].message.content
+        return content.strip() if content else markdown
 
     def accepts(
         self,
@@ -123,7 +218,8 @@ class YouTubeConverter(DocumentConverter):
             pass
 
         # Start preparing the page
-        webpage_text = f"# YouTube\n\n- **Source URL:** {stream_info.url}\n"
+        page_url = str(stream_info.url or "")
+        webpage_text = f"# YouTube\n\n- **Source URL:** {page_url}\n"
 
         title = self._get(metadata, ["title", "og:title", "name"])  # type: ignore
         assert isinstance(title, str)
@@ -151,54 +247,86 @@ class YouTubeConverter(DocumentConverter):
         if description:
             webpage_text += f"\n### Description\n{description}\n"
 
-        if IS_YOUTUBE_TRANSCRIPT_CAPABLE:
-            ytt_api = YouTubeTranscriptApi()
-            transcript_text = ""
-            parsed_url = urlparse(stream_info.url)  # type: ignore
-            params = parse_qs(parsed_url.query)  # type: ignore
-            if "v" in params and params["v"][0]:
-                video_id = str(params["v"][0])
+        transcript_text = ""
+        transcribed_from_audio = False
+        parsed_url = urlparse(page_url)
+        params = parse_qs(parsed_url.query)
+
+        if IS_YOUTUBE_TRANSCRIPT_CAPABLE and "v" in params and params["v"][0]:
+            ytt_api = YouTubeTranscriptApi()  # type: ignore[name-defined]
+            video_id = str(params["v"][0])
+            languages = ["en"]
+            transcript_list = None
+            youtube_transcript_languages = languages
+            try:
                 transcript_list = ytt_api.list(video_id)
-                languages = ["en"]
                 for transcript in transcript_list:
                     languages.append(transcript.language_code)
                     break
-                try:
-                    youtube_transcript_languages = kwargs.get(
-                        "youtube_transcript_languages", languages
-                    )
-                    # Retry the transcript fetching operation
-                    transcript = self._retry_operation(
-                        lambda: ytt_api.fetch(
-                            video_id, languages=youtube_transcript_languages
-                        ),
-                        retries=3,  # Retry 3 times
-                        delay=2,  # 2 seconds delay between retries
-                    )
 
-                    if transcript:
-                        transcript_text = " ".join(
-                            [part.text for part in transcript]
-                        )  # type: ignore
-                except Exception as e:
-                    # No transcript available
-                    if len(languages) == 1:
-                        print(f"Error fetching transcript: {e}")
-                    else:
-                        # Translate transcript into first kwarg
+                youtube_transcript_languages = kwargs.get(
+                    "youtube_transcript_languages", languages
+                )
+                transcript = self._retry_operation(
+                    lambda: ytt_api.fetch(
+                        video_id, languages=youtube_transcript_languages
+                    ),
+                    retries=3,
+                    delay=2,
+                )
+
+                if transcript:
+                    transcript_text = " ".join([part.text for part in transcript])  # type: ignore
+            except Exception as e:
+                if len(languages) == 1:
+                    print(f"Error fetching transcript: {e}")
+                elif transcript_list is not None:
+                    try:
                         transcript = (
                             transcript_list.find_transcript(languages)
                             .translate(youtube_transcript_languages[0])
                             .fetch()
                         )
                         transcript_text = " ".join([part.text for part in transcript])
-            if transcript_text:
-                webpage_text += f"\n### Transcript\n{transcript_text}\n"
+                    except Exception as translate_exc:
+                        print(f"Error fetching translated transcript: {translate_exc}")
+
+        if not transcript_text and kwargs.get("youtube_transcribe_audio", True):
+            try:
+                transcript_text = self._transcribe_audio_from_url(
+                    page_url,
+                    language=kwargs.get("language"),
+                    sensevoice_workers=kwargs.get("sensevoice_workers", 8),
+                )
+                transcribed_from_audio = bool(transcript_text)
+            except Exception as exc:
+                webpage_text += f"\n> Audio transcription failed: {exc}\n"
+
+        if transcript_text:
+            webpage_text += "\n### Transcript\n"
+            if transcribed_from_audio:
+                webpage_text += "\n> Generated from audio with ASR.\n\n"
+            webpage_text += transcript_text + "\n"
+
+        llm_client = kwargs.get("llm_client")
+        llm_model = kwargs.get("llm_model")
+        auto_correct = llm_client is not None and llm_model is not None
+        if transcribed_from_audio and auto_correct and kwargs.get("youtube_correct_transcript", True):
+            try:
+                webpage_text = self._correct_markdown_with_llm(
+                    webpage_text,
+                    client=llm_client,
+                    model=str(llm_model),
+                    language=kwargs.get("language"),
+                    prompt=kwargs.get("youtube_correction_prompt"),
+                )
+            except Exception as exc:
+                webpage_text += f"\n> LLM transcript correction failed: {exc}\n"
 
         # Convert to Simplified Chinese if requested
         if kwargs.get("convert_to_simplified_chinese") and IS_ZHCONV_CAPABLE:
-            webpage_text = zhconv.convert(webpage_text, "zh-hans")
-            title = zhconv.convert(title, "zh-hans")
+            webpage_text = zhconv.convert(webpage_text, "zh-hans")  # type: ignore[name-defined]
+            title = zhconv.convert(title, "zh-hans")  # type: ignore[name-defined]
 
         title = title if title else (soup.title.string if soup.title else "")
         assert isinstance(title, str)
