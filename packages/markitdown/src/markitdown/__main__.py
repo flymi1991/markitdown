@@ -335,6 +335,10 @@ def _prompt_for_missing_cli_args(args: argparse.Namespace) -> None:
         if value:
             args.output = value
 
+    if not args.use_plugins and sys.stdin.isatty():
+        value = input("Use OCR plugin? [y/N]: ").strip().lower()
+        args.use_plugins = value == "y"
+
 
 def _exit_with_error(message: str):
     print(message)

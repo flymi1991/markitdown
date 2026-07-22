@@ -204,6 +204,40 @@ def test_list_plugins_does_not_prompt(monkeypatch) -> None:
     assert exc_info.value.code == 0
 
 
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [
+        ("y", True),
+        ("Y", True),
+        ("", False),
+        ("n", False),
+        ("abc", False),
+    ],
+)
+def test_interactive_ocr_prompt_defaults_to_no(monkeypatch, answer, expected) -> None:
+    """Interactive OCR prompt only enables plugins for y/Y."""
+
+    class InteractiveStdin:
+        def isatty(self):
+            return True
+
+    from argparse import Namespace
+    from markitdown.__main__ import _prompt_for_missing_cli_args
+
+    args = Namespace(
+        filename="input.pdf",
+        output="output.md",
+        use_plugins=False,
+    )
+
+    monkeypatch.setattr(sys, "stdin", InteractiveStdin())
+    monkeypatch.setattr("builtins.input", lambda prompt: answer)
+
+    _prompt_for_missing_cli_args(args)
+
+    assert args.use_plugins is expected
+
+
 if __name__ == "__main__":
     import tempfile
 
