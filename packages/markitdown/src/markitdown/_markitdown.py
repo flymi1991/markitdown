@@ -648,6 +648,7 @@ class MarkItDown:
                         file_stream.seek(cur_pos)
 
                 if res is not None:
+                    res.markdown = self._add_source_to_markdown(res.markdown, stream_info)
                     # Normalize the content
                     res.text_content = "\n".join(
                         [line.rstrip() for line in re.split(r"\r?\n", res.text_content)]
@@ -663,6 +664,25 @@ class MarkItDown:
         raise UnsupportedFormatException(
             "Could not convert stream to Markdown. No converter attempted a conversion, suggesting that the filetype is simply not supported."
         )
+
+    def _add_source_to_markdown(self, markdown: str, stream_info: StreamInfo) -> str:
+        source_line = self._get_source_line(stream_info)
+        if source_line is None or "- **Source " in markdown:
+            return markdown
+
+        lines = markdown.splitlines()
+        if lines and lines[0].startswith("# "):
+            return "\n".join([lines[0], "", source_line, *lines[1:]])
+        return f"{source_line}\n\n{markdown}"
+
+    def _get_source_line(self, stream_info: StreamInfo) -> Optional[str]:
+        if stream_info.url:
+            return f"- **Source URL:** {stream_info.url}"
+        if stream_info.local_path:
+            return f"- **Source File:** {stream_info.local_path}"
+        if stream_info.filename:
+            return f"- **Source File:** {stream_info.filename}"
+        return None
 
     def register_page_converter(self, converter: DocumentConverter) -> None:
         """DEPRECATED: User register_converter instead."""

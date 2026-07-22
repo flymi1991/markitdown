@@ -366,17 +366,21 @@ class BilibiliConverter(DocumentConverter):
                 webpage_text = self._correct_markdown_with_llm(
                     webpage_text,
                     client=llm_client,
-                    model=llm_model,
+                    model=str(llm_model),
                     language=kwargs.get("language", "zh"),
                     prompt=kwargs.get("bilibili_correction_prompt"),
                 )
             except Exception as exc:
                 webpage_text += f"\n> LLM transcript correction failed: {exc}\n"
 
+        if transcript_text and IS_ZHCONV_CAPABLE:
+            webpage_text = zhconv.convert(webpage_text, "zh-hans")  # type: ignore[name-defined]
+            title = zhconv.convert(title, "zh-hans")  # type: ignore[name-defined]
+
         # Convert to Simplified Chinese if requested
         if kwargs.get("convert_to_simplified_chinese") and IS_ZHCONV_CAPABLE:
-            webpage_text = zhconv.convert(webpage_text, "zh-hans")
-            title = zhconv.convert(title, "zh-hans")
+            webpage_text = zhconv.convert(webpage_text, "zh-hans")  # type: ignore[name-defined]
+            title = zhconv.convert(title, "zh-hans")  # type: ignore[name-defined]
 
         title = title or (soup.title.string if soup.title else "")
         return DocumentConverterResult(markdown=webpage_text, title=title)

@@ -46,6 +46,7 @@ all = [
   "pydub",
   "SpeechRecognition",
   "youtube-transcript-api>=1.0.0",
+  "zhconv",
   "azure-ai-documentintelligence",
   "azure-ai-contentunderstanding>=1.2.0b1",
   "azure-identity",
