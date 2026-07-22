@@ -19,7 +19,10 @@ _sensevoice_available = False
 _sensevoice_model = None
 _sensevoice_model_lock = threading.Lock()
 
-SENSEVOICE_CHUNK_THRESHOLD_BYTES = 20 * 1024 * 1024
+SENSEVOICE_CHUNK_THRESHOLD_BYTES = 5 * 1024 * 1024
+SENSEVOICE_CHUNK_OVERLAP_MS = 500
+SENSEVOICE_SILENCE_SEARCH_MS = 5000
+SENSEVOICE_MIN_SILENCE_MS = 500
 SENSEVOICE_MAX_WORKERS = 8
 SENSEVOICE_MODEL_NAME = "iic/SenseVoiceSmall"
 SENSEVOICE_MODEL_DIRNAME = "SenseVoiceSmall"
@@ -224,21 +227,63 @@ def _split_audio_for_sensevoice(audio_path: str, audio_format: str) -> list[str]
         return [audio_path]
 
     import pydub
+    from pydub.silence import detect_silence
 
     source_format = "mp4" if audio_format == "mp4" else audio_format
     audio_segment = pydub.AudioSegment.from_file(audio_path, format=source_format)
-    source_size = max(os.path.getsize(audio_path), 1)
-    chunk_count = max(2, math.ceil(source_size / SENSEVOICE_CHUNK_THRESHOLD_BYTES))
-    chunk_ms = math.ceil(len(audio_segment) / chunk_count)
+    bytes_per_ms = max(
+        audio_segment.frame_rate
+        * audio_segment.frame_width
+        * audio_segment.channels
+        / 1000,
+        1,
+    )
+    max_chunk_ms = max(1000, int((SENSEVOICE_CHUNK_THRESHOLD_BYTES - 4096) / bytes_per_ms))
+    if len(audio_segment) <= max_chunk_ms:
+        return [audio_path]
 
     chunk_paths = []
-    for start_ms in range(0, len(audio_segment), chunk_ms):
-        chunk = audio_segment[start_ms : start_ms + chunk_ms]
+    start_ms = 0
+    while start_ms < len(audio_segment):
+        hard_end_ms = min(start_ms + max_chunk_ms, len(audio_segment))
+        if hard_end_ms >= len(audio_segment):
+            end_ms = len(audio_segment)
+        else:
+            end_ms = _find_silence_cut(
+                audio_segment,
+                start_ms,
+                hard_end_ms,
+                detect_silence,
+            )
+
+        chunk = audio_segment[start_ms:end_ms]
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
             chunk_path = tmp.name
         chunk.export(chunk_path, format="wav")
         chunk_paths.append(chunk_path)
+
+        if end_ms >= len(audio_segment):
+            break
+        next_start_ms = max(end_ms - SENSEVOICE_CHUNK_OVERLAP_MS, start_ms + 1)
+        start_ms = min(next_start_ms, len(audio_segment))
     return chunk_paths
+
+
+def _find_silence_cut(audio_segment, start_ms: int, hard_end_ms: int, detect_silence) -> int:
+    search_start_ms = max(start_ms, hard_end_ms - SENSEVOICE_SILENCE_SEARCH_MS)
+    search_segment = audio_segment[search_start_ms:hard_end_ms]
+    silence_threshold = search_segment.dBFS - 16 if search_segment.dBFS != float("-inf") else -50
+    silent_ranges = detect_silence(
+        search_segment,
+        min_silence_len=SENSEVOICE_MIN_SILENCE_MS,
+        silence_thresh=silence_threshold,
+    )
+    if not silent_ranges:
+        return hard_end_ms
+
+    latest_silence = silent_ranges[-1]
+    cut_ms = search_start_ms + math.floor((latest_silence[0] + latest_silence[1]) / 2)
+    return max(start_ms + 1, min(cut_ms, hard_end_ms))
 
 
 def _map_language(language: Optional[str]) -> str:
